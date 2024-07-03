@@ -3,11 +3,19 @@ import selectorlib
 import smtplib, ssl
 import os
 import time
+import sqlite3
+
 
 URL = "http://programmer100.pythonanywhere.com/tours/"
 HEADERS = {
     'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/39.0.2171.95 Safari/537.36'}
 
+# SQL commands
+"INSERT INTO events VALUES ('Metallica', 'Pittsburgh', '2025.09.17')"
+"SELECT * FROM events WHERE date='2024.08.10'"
+"DELETE FROM events WHERE Artist= 'Tigers'"
+
+connection = sqlite3.connect("data.db")
 
 def scrape(url):
     """scrape the page source (html of the page) from the URL"""
@@ -18,8 +26,8 @@ def scrape(url):
 
 def extract(source):
     extractor = selectorlib.Extractor.from_yaml_file("extract.yaml")
-    value = extractor.extract(source)["tours"]
-    return value
+    extracted = extractor.extract(source)["tours"]
+    return extracted
 
 
 def send_email(message):
@@ -37,14 +45,28 @@ def send_email(message):
 
 
 def store(extracted):
-    """appends extracted tour to txt file"""
-    with open('data.txt', 'a') as file:
-        file.write(extracted + "\n")
+    """appends extracted tour to SQL database"""
+
+    extracted = extracted.strip(" ")
+    extracted = extracted.split(",")
+    cursor = connection.cursor()
+    cursor.execute("INSERT INTO events VALUES (?,?,?)", extracted)
+    connection.commit()
 
 
 def read(extracted):
-    with open("data.txt", 'r') as file:
-        return file.read()
+    """checks if the extracted concert is in the database.
+    Returns empty list if not, returns concert if so
+    """
+    row = extracted.split
+    row = [item.strip() for item in row]
+    artist, city, date = row
+    cursor = connection.cursor()
+    cursor.execute("SELECT * FROM events WHERE Artist=? AND city=? AND date=?",
+                   (artist, city, date))
+    rows = cursor.fetchall()
+    print(rows)
+    return rows
 
 
 subject = ("\
@@ -56,9 +78,11 @@ if __name__ == "__main__":
         extracted = extract(scraped)
         print(extracted)
 
-        content = read(extracted)
         if extracted != "No upcoming tours":
-            if extracted not in content:
+            row = read(extracted)
+            if not row:
                 store(extracted)
-                send_email(message=subject + "\n\nHey, New Event was found")
-        time.sleep(200)
+                # send_email(message=subject + "\n\nHey, New Event was found")
+                print("New event found")
+
+        time.sleep(2)
