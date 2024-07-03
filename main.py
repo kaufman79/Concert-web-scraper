@@ -17,6 +17,7 @@ HEADERS = {
 
 connection = sqlite3.connect("data.db")
 
+
 def scrape(url):
     """scrape the page source (html of the page) from the URL"""
     response = requests.get(url)
@@ -46,11 +47,10 @@ def send_email(message):
 
 def store(extracted):
     """appends extracted tour to SQL database"""
-
-    extracted = extracted.strip(" ")
-    extracted = extracted.split(",")
+    row = extracted.split(",")
+    row = [item.strip() for item in row]
     cursor = connection.cursor()
-    cursor.execute("INSERT INTO events VALUES (?,?,?)", extracted)
+    cursor.execute("INSERT INTO events VALUES (?,?,?)", row)
     connection.commit()
 
 
@@ -58,7 +58,7 @@ def read(extracted):
     """checks if the extracted concert is in the database.
     Returns empty list if not, returns concert if so
     """
-    row = extracted.split
+    row = extracted.split(",")
     row = [item.strip() for item in row]
     artist, city, date = row
     cursor = connection.cursor()
@@ -82,7 +82,7 @@ if __name__ == "__main__":
             row = read(extracted)
             if not row:
                 store(extracted)
-                # send_email(message=subject + "\n\nHey, New Event was found")
+                send_email(message=subject + "\n\nHey, New Event was found")
                 print("New event found")
 
         time.sleep(2)
